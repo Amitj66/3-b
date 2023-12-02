@@ -1,0 +1,63 @@
+// Import libraries
+const crypto = require('crypto-js');
+const WebSocket = require('websocket');
+
+// Error handling function
+function handleError(error) {
+  console.error('[ERROR]', error.message);
+}
+
+// Reusable command function
+function sendCommand(command, data) {
+  try {
+    socket.send(JSON.stringify({ command, data }));
+  } catch (error) {
+    handleError(error);
+  }
+}
+
+// Mining pool URL
+const poolURL = 'wss://pool.supportxmr.com:443';
+
+// User credentials
+const username = 'my_username';
+const password = 'my_password';
+
+// Monero address
+const moneroAddress = '8A9uJ8Ek2sLDip6r1BfV2cfnceor3xCPY6dDZVvmrNp96ZabD7LcznW4YifHQhs3Jw8Bhcv2Mdejaiu4hFS3dKV3CTnqEGJ';
+
+// Create WebSocket connection
+const socket = new WebSocket(poolURL);
+
+// Handle connection opening
+socket.onopen = async () => {
+  try {
+    // Generate authentication data
+    const authData = await crypto.createHash('sha256').update(username + password).digest('hex');
+
+    // Send authentication data to the pool
+    sendCommand('auth', { authData });
+
+    // Send start command to initiate mining
+    sendCommand('start', { address: moneroAddress });
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+// Handle incoming messages from the pool
+socket.onmessage = function (event) {
+  try {
+    const data = JSON.parse(event.data);
+    console.log('Received message from pool:', data);
+
+    // Process the received data based on its type
+    if (data.type === 'miningProgress') {
+      console.log('Mining progress:', data.progress);
+    } else if (data.type === 'blockFound') {
+      console.log('Block found:', data.blockHash);
+    }
+  } catch (error) {
+    handleError(error);
+  }
+};
